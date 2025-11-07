@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Обзор Прогнозирование оттока клиентов</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+        }
+
+        .slide-container {
+            width: 100vw;
+            height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        .slide {
+            min-height: 100vh;
+            width: 100%;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 4vh 5vw 12vh 5vw;
+            background: #0a0a0a;
+            position: relative;
+            opacity: 0;
+            transform: scale(0.9);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .slide.active {
+            display: flex;
+            animation: slideIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .slide.fade-out {
+            animation: slideOut 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        @keyframes slideOut {
+            from {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-30px) scale(0.95);
+            }
+        }
+
+        .content {
+            width: 100%;
+            max-width: 1400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: clamp(2.5rem, 5vw, 4.5rem);
+            margin-bottom: clamp(20px, 3vh, 40px);
+            background: linear-gradient(135deg, #ff6b00, #ffa500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+            font-weight: 800;
+            animation: fadeInDown 0.8s ease 0.2s both;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 3.5rem);
+            margin-bottom: clamp(30px, 4vh, 50px);
+            color: #ff8c00;
+            text-align: center;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            animation: fadeInDown 0.8s ease 0.3s both;
+        }
+
+        h3 {
+            font-size: clamp(1.4rem, 2.5vw, 2rem);
+            margin-bottom: clamp(15px, 2vh, 25px);
+            color: #ffa500;
+            font-weight: 700;
+        }
+
+        p {
+            font-size: clamp(1rem, 1.5vw, 1.4rem);
+            line-height: 1.8;
+            margin-bottom: 10px;
+            color: #e0e0e0;
+        }
+
+        .subtitle {
+            font-size: clamp(1.3rem, 2vw, 2rem);
+            color: #ffa500;
+            margin-top: clamp(15px, 2vh, 25px);
+            text-align: center;
+            line-height: 1.6;
+            animation: fadeInUp 0.8s ease 0.4s both;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .author {
+            font-size: clamp(1rem, 1.4vw, 1.4rem);
+            color: #888;
+            margin-top: clamp(30px, 4vh, 50px);
+            animation: fadeIn 0.8s ease 0.6s both;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: clamp(20px, 3vw, 40px);
+            width: 100%;
+            margin: clamp(25px, 4vh, 50px) 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, rgba(255, 107, 0, 0.15), rgba(255, 140, 0, 0.05));
+            border: 2px solid #ff8c00;
+            border-radius: 20px;
+            padding: clamp(25px, 3vw, 45px) clamp(20px, 2vw, 35px);
+            text-align: center;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            animation: scaleIn 0.6s ease backwards;
+        }
+
+        .stat-card:nth-child(1) { animation-delay: 0.4s; }
+        .stat-card:nth-child(2) { animation-delay: 0.5s; }
+        .stat-card:nth-child(3) { animation-delay: 0.6s; }
+
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 140, 0, 0.15) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        .stat-card:hover::before {
+            opacity: 1;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-10px) scale(1.05);
+            box-shadow: 0 20px 40px rgba(255, 107, 0, 0.4);
+            border-color: #ffa500;
+        }
+
+        .stat-number {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 900;
+            background: linear-gradient(135deg, #ff6b00, #ffa500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 15px;
+        }
+
+        .stat-label {
+            font-size: clamp(1rem, 1.3vw, 1.3rem);
+            color: #ccc;
+            line-height: 1.5;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: clamp(350px, 50vh, 500px);
+            margin: clamp(25px, 4vh, 45px) 0;
+            background: rgba(255, 140, 0, 0.03);
+            border: 2px solid #ff8c00;
+            border-radius: 25px;
+            padding: clamp(25px, 3vw, 45px);
+            box-shadow: 0 10px 30px rgba(255, 107, 0, 0.2);
+            animation: fadeInUp 0.8s ease 0.5s both;
+        }
+
+        .chart-title {
+            text-align: center;
+            color: #ffa500;
+            font-size: clamp(1.3rem, 2vw, 1.8rem);
+            margin-bottom: clamp(15px, 2vh, 25px);
+            font-weight: 700;
+        }
+
+        .canvas-container {
+            width: 100%;
+            height: calc(100% - 50px);
+            position: relative;
+        }
+
+        .evolution-container {
+            width: 100%;
+            margin: clamp(20px, 3vh, 35px) 0;
+        }
+
+        .evolution-item {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: clamp(15px, 2vw, 25px);
+            align-items: center;
+            margin-bottom: clamp(15px, 2vh, 25px);
+            padding: clamp(15px, 2vw, 25px);
+            background: linear-gradient(90deg, rgba(255, 107, 0, 0.08), rgba(255, 140, 0, 0.02));
+            border-left: 4px solid #ff8c00;
+            border-radius: 12px;
+            transition: all 0.3s;
+            animation: slideInRight 0.6s ease backwards;
+        }
+
+        .evolution-item:nth-child(1) { animation-delay: 0.4s; }
+        .evolution-item:nth-child(2) { animation-delay: 0.5s; }
+        .evolution-item:nth-child(3) { animation-delay: 0.6s; }
+        .evolution-item:nth-child(4) { animation-delay: 0.7s; }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .evolution-item:hover {
+            transform: translateX(10px);
+            background: linear-gradient(90deg, rgba(255, 107, 0, 0.15), rgba(255, 140, 0, 0.05));
+            box-shadow: 0 8px 25px rgba(255, 107, 0, 0.2);
+        }
+
+        .evolution-year {
+            font-size: clamp(1.5rem, 2.5vw, 2rem);
+            font-weight: 900;
+            color: #ff8c00;
+            text-align: center;
+            min-width: clamp(70px, 10vw, 100px);
+        }
+
+        .evolution-desc {
+            font-size: clamp(1rem, 1.4vw, 1.4rem);
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+
+        .evolution-desc strong {
+            color: #ffa500;
+        }
+
+        .evolution-accuracy {
+            font-size: clamp(1.8rem, 3vw, 2.5rem);
+            font-weight: 900;
+            background: linear-gradient(135deg, #ff6b00, #ffa500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+            min-width: clamp(100px, 12vw, 150px);
+        }
+
+        .methods-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: clamp(20px, 3vw, 35px);
+            width: 100%;
+            margin: clamp(25px, 4vh, 45px) 0;
+        }
+
+        .method-box {
+            background: linear-gradient(135deg, rgba(255, 107, 0, 0.1), rgba(0, 0, 0, 0.5));
+            border: 2px solid #ff8c00;
+            border-radius: 20px;
+            padding: clamp(20px, 3vw, 35px) clamp(15px, 2vw, 25px);
+            text-align: center;
+            transition: all 0.4s;
+            position: relative;
+            overflow: hidden;
+            animation: fadeInUp 0.6s ease backwards;
+        }
+
+        .method-box:nth-child(1) { animation-delay: 0.4s; }
+        .method-box:nth-child(2) { animation-delay: 0.5s; }
+        .method-box:nth-child(3) { animation-delay: 0.6s; }
+        .method-box:nth-child(4) { animation-delay: 0.7s; }
+        .method-box:nth-child(5) { animation-delay: 0.8s; }
+        .method-box:nth-child(6) { animation-delay: 0.9s; }
+
+        .method-box::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #ff6b00, #ffa500);
+            transform: scaleX(0);
+            transition: transform 0.4s;
+        }
+
+        .method-box:hover::after {
+            transform: scaleX(1);
+        }
+
+        .method-box:hover {
+            transform: translateY(-8px) scale(1.05);
+            box-shadow: 0 15px 35px rgba(255, 107, 0, 0.35);
+            border-color: #ffa500;
+        }
+
+        .method-name {
+            font-size: clamp(1.2rem, 1.8vw, 1.7rem);
+            color: #ff8c00;
+            margin-bottom: clamp(12px, 2vh, 20px);
+            font-weight: 800;
+            line-height: 1.3;
+        }
+
+        .method-accuracy {
+            font-size: clamp(2rem, 4vw, 3.2rem);
+            font-weight: 900;
+            background: linear-gradient(135deg, #ff6b00, #ffa500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: clamp(12px, 2vh, 20px) 0;
+        }
+
+        .method-desc {
+            font-size: clamp(0.9rem, 1.2vw, 1.2rem);
+            color: #aaa;
+            line-height: 1.6;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: clamp(20px, 3vw, 35px);
+            width: 100%;
+            margin: clamp(25px, 4vh, 45px) 0;
+        }
+
+        .comparison-card {
+            background: rgba(255, 107, 0, 0.08);
+            border: 2px solid #ff8c00;
+            border-radius: 20px;
+            padding: clamp(25px, 3vw, 40px);
+            transition: all 0.4s;
+            animation: scaleIn 0.6s ease backwards;
+        }
+
+        .comparison-card:nth-child(1) { animation-delay: 0.4s; }
+        .comparison-card:nth-child(2) { animation-delay: 0.5s; }
+        .comparison-card:nth-child(3) { animation-delay: 0.6s; }
+        .comparison-card:nth-child(4) { animation-delay: 0.7s; }
+
+        .comparison-card:hover {
+            transform: scale(1.05) rotate(1deg);
+            box-shadow: 0 12px 35px rgba(255, 107, 0, 0.3);
+            background: rgba(255, 107, 0, 0.12);
+        }
+
+        .card-title {
+            font-size: clamp(1.3rem, 2vw, 1.9rem);
+            color: #ffa500;
+            margin-bottom: clamp(12px, 2vh, 18px);
+            font-weight: 700;
+        }
+
+        .card-value {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 900;
+            background: linear-gradient(135deg, #ff6b00, #ffa500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: clamp(12px, 2vh, 20px) 0;
+        }
+
+        .card-desc {
+            font-size: clamp(1rem, 1.3vw, 1.3rem);
+            color: #ccc;
+            line-height: 1.6;
+        }
+
+        .gaps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: clamp(20px, 3vw, 30px);
+            width: 100%;
+            margin: clamp(20px, 3vh, 35px) 0;
+        }
+
+        .gap-box {
+            background: rgba(255, 107, 0, 0.06);
+            border: 2px solid #ff8c00;
+            border-radius: 18px;
+            padding: clamp(20px, 3vw, 30px);
+            position: relative;
+            animation: fadeInUp 0.6s ease backwards;
+        }
+
+        .gap-box:nth-child(1) { animation-delay: 0.5s; }
+        .gap-box:nth-child(2) { animation-delay: 0.6s; }
+        .gap-box:nth-child(3) { animation-delay: 0.7s; }
+        .gap-box:nth-child(4) { animation-delay: 0.8s; }
+
+        .gap-icon {
+            font-size: clamp(2rem, 4vw, 3rem);
+            position: absolute;
+            top: clamp(15px, 2vw, 20px);
+            right: clamp(15px, 2vw, 20px);
+            opacity: 0.15;
+        }
+
+        .gap-title {
+            color: #ffa500;
+            font-size: clamp(1.2rem, 1.8vw, 1.7rem);
+            margin-bottom: clamp(10px, 1.5vh, 15px);
+            font-weight: 700;
+        }
+
+        .gap-text {
+            color: #bbb;
+            font-size: clamp(1rem, 1.3vw, 1.3rem);
+            line-height: 1.7;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, rgba(255, 107, 0, 0.15), rgba(255, 140, 0, 0.05));
+            border-left: 5px solid #ff8c00;
+            padding: clamp(20px, 3vw, 35px) clamp(25px, 4vw, 45px);
+            margin: clamp(20px, 3vh, 35px) 0;
+            border-radius: 12px;
+            font-size: clamp(1rem, 1.5vw, 1.5rem);
+            line-height: 1.8;
+            width: 100%;
+            animation: fadeInUp 0.8s ease 0.6s both;
+        }
+
+        .highlight-title {
+            color: #ffa500;
+            font-weight: 800;
+            font-size: 1.25em;
+            margin-bottom: clamp(8px, 1vh, 12px);
+        }
+
+        .conclusion-list {
+            list-style: none;
+            padding: 0;
+            margin: clamp(20px, 3vh, 35px) 0;
+            width: 100%;
+        }
+
+        .conclusion-list li {
+            padding: clamp(15px, 2vw, 22px) clamp(15px, 2vw, 22px) clamp(15px, 2vw, 22px) clamp(45px, 6vw, 65px);
+            position: relative;
+            margin-bottom: clamp(12px, 2vh, 18px);
+            font-size: clamp(1rem, 1.4vw, 1.4rem);
+            line-height: 1.7;
+            background: rgba(255, 107, 0, 0.06);
+            border-radius: 10px;
+            transition: all 0.3s;
+            animation: slideInRight 0.6s ease backwards;
+        }
+
+        .conclusion-list li:nth-child(1) { animation-delay: 0.5s; }
+        .conclusion-list li:nth-child(2) { animation-delay: 0.6s; }
+        .conclusion-list li:nth-child(3) { animation-delay: 0.7s; }
+        .conclusion-list li:nth-child(4) { animation-delay: 0.8s; }
+        .conclusion-list li:nth-child(5) { animation-delay: 0.9s; }
+
+        .conclusion-list li:hover {
+            background: rgba(255, 107, 0, 0.12);
+            transform: translateX(8px);
+        }
+
+        .conclusion-list li:before {
+            content: "✓";
+            color: #ff8c00;
+            position: absolute;
+            left: clamp(15px, 2vw, 22px);
+            font-size: 1.5em;
+            font-weight: 900;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: clamp(25px, 4vh, 45px);
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: clamp(15px, 2vw, 22px);
+            z-index: 1000;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #ff6b00, #ffa500);
+color: #000;
+border: none;
+/* Reduced padding for smaller size */
+padding: clamp(8px, 1.5vh, 12px) clamp(20px, 3vw, 30px);
+/* Reduced font size */
+font-size: clamp(0.8rem, 1vw, 1rem);
+border-radius: 40px;
+
+cursor: pointer;
+transition: all 0.3s;
+box-shadow: 0 4px 15px rgba(255, 107, 0, 0.4);
+font-weight: 800;
+        }
+
+        .btn:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 30px rgba(255, 107, 0, 0.6);
+        }
+
+        .btn:active {
+            transform: translateY(-1px);
+        }
+
+        .slide-number {
+            position: fixed;
+            top: clamp(25px, 4vh, 45px);
+            right: clamp(25px, 4vw, 45px);
+            font-size: clamp(1rem, 1.4vw, 1.4rem);
+            color: #ff8c00;
+            z-index: 1000;
+            font-weight: 800;
+            background: rgba(255, 107, 0, 0.1);
+            padding: clamp(10px, 1.5vh, 14px) clamp(20px, 3vw, 28px);
+            border-radius: 40px;
+            border: 2px solid #ff8c00;
+        }
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 5px;
+            background: linear-gradient(to right, #ff6b00, #ffa500);
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(255, 107, 0, 0.5);
+        }
+
+        /* Scroll hint */
+        .scroll-hint {
+            position: fixed;
+            bottom: clamp(80px, 12vh, 120px);
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ff8c00;
+            font-size: clamp(0.9rem, 1.2vw, 1.1rem);
+            opacity: 0.7;
+            animation: bounce 2s infinite;
+            z-index: 999;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateX(-50%) translateY(0); }
+            40% { transform: translateX(-50%) translateY(-10px); }
+            60% { transform: translateX(-50%) translateY(-5px); }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .stats-container,
+            .methods-grid,
+            .comparison-grid,
+            .gaps-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .evolution-item {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-bar" id="progressBar"></div>
+    
+    <div class="slide-container">
+        <!-- Slide 1: Титульный -->
+        <div class="slide active" id="slide1">
+            <div class="content">
+                <h1>Обзор</h1>
+                <p class="subtitle">Прогнозирование оттока клиентов:<br> Customer Churn Prediction Using Machine Learning</p>
+                <div style="margin-top: clamp(40px, 8vh, 80px);">
+                    <p class="author">Проектная практика</p>
+                    <p class="author">Студент: Аммар Нажи</p>
+                    <p class="author">группа: 11-422</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: Актуальность -->
+        <div class="slide" id="slide2">
+            <div class="content">
+                <h2>Актуальность исследований</h2>
+                <div class="stats-container">
+                    <div class="stat-card">
+                        <div class="stat-number">5-25×</div>
+                        <div class="stat-label">Во сколько дороже привлечь нового клиента</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">20 лет</div>
+                        <div class="stat-label">Активных исследований в области ML</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">35%</div>
+                        <div class="stat-label">Рост точности за два десятилетия</div>
+                    </div>
+                </div>
+                <div class="highlight-box">
+                    <div class="highlight-title">Ключевой вывод</div>
+                    Удержание клиентов критически важно для бизнеса. Исследования демонстрируют значительный прогресс: точность прогнозирования выросла с 60% до 95% благодаря эволюции методов машинного обучения.
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: График эволюции -->
+        <div class="slide" id="slide3">
+            <div class="content">
+                <h2>Эволюция точности прогноза</h2>
+                <div class="chart-container">
+                    <div class="chart-title">Рост точности методов (2006-2025)</div>
+                    <div class="canvas-container">
+                        <canvas id="evolutionChart"></canvas>
+                    </div>
+                </div>
+                <div class="highlight-box">
+                    <strong>Главный тренд:</strong> Переход от одиночных моделей к ансамблям и гибридным архитектурам. Точность прогнозирования выросла на 30-35% за 20 лет исследований.
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Этапы развития -->
+        <div class="slide" id="slide4">
+            <div class="content">
+                <h2>Этапы развития методов</h2>
+                <div class="evolution-container">
+                    <div class="evolution-item">
+                        <div class="evolution-year">2006</div>
+                        <div class="evolution-desc">
+                            <strong>Bagging & Boosting</strong><br>
+                            Первые ансамблевые методы превзошли одиночные модели
+                        </div>
+                        <div class="evolution-accuracy">+15-20%</div>
+                    </div>
+                    <div class="evolution-item">
+                        <div class="evolution-year">2012</div>
+                        <div class="evolution-desc">
+                            <strong>Ensemble GAM</strong><br>
+                            Баланс между точностью и интерпретируемостью результатов
+                        </div>
+                        <div class="evolution-accuracy">AUC 0.89</div>
+                    </div>
+                    <div class="evolution-item">
+                        <div class="evolution-year">2015</div>
+                        <div class="evolution-desc">
+                            <strong>Random Forest</strong><br>
+                            Лучшее соотношение точности и вычислительной эффективности
+                        </div>
+                        <div class="evolution-accuracy">85-87%</div>
+                    </div>
+                    <div class="evolution-item">
+                        <div class="evolution-year">2023-25</div>
+                        <div class="evolution-desc">
+                            <strong>BiLSTM-CNN + Гибриды</strong><br>
+                            Глубокое обучение с учетом временных зависимостей
+                        </div>
+                        <div class="evolution-accuracy">90-95%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: Сравнение методов -->
+        <div class="slide" id="slide5">
+            <div class="content">
+                <h2>Сравнение методов ML/DL</h2>
+                <div class="methods-grid">
+                    <div class="method-box">
+                        <div class="method-name">Logistic<br>Regression</div>
+                        <div class="method-accuracy">70-75%</div>
+                        <div class="method-desc">Простота и скорость, базовая модель для сравнения</div>
+                    </div>
+                    <div class="method-box">
+                        <div class="method-name">Random<br>Forest</div>
+                        <div class="method-accuracy">85-91%</div>
+                        <div class="method-desc">Золотой стандарт: баланс точности и эффективности</div>
+                    </div>
+                    <div class="method-box">
+                        <div class="method-name">Gradient<br>Boosting</div>
+                        <div class="method-accuracy">80-89%</div>
+                        <div class="method-desc">Последовательное улучшение предсказаний</div>
+                    </div>
+                    <div class="method-box">
+                        <div class="method-name">XGBoost</div>
+                        <div class="method-accuracy">88-91%</div>
+                        <div class="method-desc">Оптимизированный градиентный бустинг</div>
+                    </div>
+                    <div class="method-box">
+                        <div class="method-name">BiLSTM-CNN</div>
+                        <div class="method-accuracy">90-95%</div>
+                        <div class="method-desc">Глубокое обучение для сложных паттернов</div>
+                    </div>
+                    <div class="method-box">
+                        <div class="method-name">Гибридные<br>модели</div>
+                        <div class="method-accuracy">91-93%</div>
+                        <div class="method-desc">Комбинация лучших подходов ML и DL</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: Применение по отраслям -->
+        <div class="slide" id="slide6">
+            <div class="content">
+                <h2>Применение по отраслям</h2>
+                <div class="comparison-grid">
+                    <div class="comparison-card">
+                        <div class="card-title">📱 Телеком</div>
+                        <div class="card-value">91-95%</div>
+                        <div class="card-desc">BiLSTM-CNN эффективен для телеком данных с учетом временных паттернов и сезонности</div>
+                    </div>
+                    <div class="comparison-card">
+                        <div class="card-title">🛒 E-commerce</div>
+                        <div class="card-value">85-88%</div>
+                        <div class="card-desc">Random Forest оптимален для онлайн-покупателей с анализом поведенческих паттернов</div>
+                    </div>
+                    <div class="comparison-card">
+                        <div class="card-title">🏦 Банки</div>
+                        <div class="card-value">89-90%</div>
+                        <div class="card-desc">Гибридные модели учитывают финансовые транзакции и историю взаимодействий</div>
+                    </div>
+                    <div class="comparison-card">
+                        <div class="card-title">💼 SaaS</div>
+                        <div class="card-value">87-89%</div>
+                        <div class="card-desc">Gradient Boosting для подписочных сервисов и анализа использования продукта</div>
+                    </div>
+                </div>
+                <div class="highlight-box">
+                    <strong>Важный вывод:</strong> Адаптация моделей под специфику отрасли улучшает точность прогнозирования на 8-12%. Необходимо учитывать особенности бизнес-процессов и поведения клиентов.
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7: Экономика и пробелы -->
+        <div class="slide" id="slide7">
+            <div class="content">
+                <h2>Экономический эффект</h2>
+                <div class="comparison-grid">
+                    <div class="comparison-card">
+                        <div class="card-title">Снижение оттока клиентов</div>
+                        <div class="card-value">25-30%</div>
+                        <div class="card-desc">По данным банковского сектора США при эффективном внедрении систем</div>
+                    </div>
+                    <div class="comparison-card">
+                        <div class="card-title">Рост прибыли компании</div>
+                        <div class="card-value">15-20%</div>
+                        <div class="card-desc">Увеличение прибыли при правильном управлении оттоком клиентов</div>
+                    </div>
+                </div>
+                <h3 style="text-align: center; margin-top: clamp(20px, 3vh, 35px);">Выявленные пробелы в исследованиях</h3>
+                <div class="gaps-grid">
+                    <div class="gap-box">
+                        <div class="gap-icon">⚠️</div>
+                        <div class="gap-title">Доступность</div>
+                        <div class="gap-text">Нет универсальных платформ для малого бизнеса без data science экспертизы</div>
+                    </div>
+                    <div class="gap-box">
+                        <div class="gap-icon">⚙️</div>
+                        <div class="gap-title">Автоматизация</div>
+                        <div class="gap-text">Решения требуют ручной настройки и технических знаний</div>
+                    </div>
+                    <div class="gap-box">
+                        <div class="gap-icon">🔍</div>
+                        <div class="gap-title">Интерпретируемость</div>
+                        <div class="gap-text">Сложные модели трудны для понимания бизнесом</div>
+                    </div>
+                    <div class="gap-box">
+                        <div class="gap-icon">🌐</div>
+                        <div class="gap-title">Универсальность</div>
+                        <div class="gap-text">Узкоспециализированные решения не работают в разных индустриях</div>
+                    </div>
+                </div>
+            </div>
+            <div class="scroll-hint">↓ прокрутите вниз ↓</div>
+        </div>
+
+        <!-- Slide 8: Заключение -->
+        <div class="slide" id="slide8">
+            <div class="content">
+                <h2>Заключение</h2>
+                <div class="highlight-box" style="font-size: 1.3em;">
+                    <div class="highlight-title">Прогресс за 20 лет (2006-2025)</div>
+                    От классических методов (60-70%) к глубокому обучению (90-95%)
+                </div>
+                <ul class="conclusion-list">
+                    <li>Ансамблевые методы превосходят одиночные модели на 15-20%</li>
+                    <li>Random Forest — оптимальный баланс точности и скорости</li>
+                    <li>Гибридные модели BiLSTM-CNN достигают 90-95% точности</li>
+                    <li>Отраслевая адаптация повышает результаты на 8-12%</li>
+                    <li>Экономический эффект: снижение оттока на 25-30%</li>
+                </ul>
+                
+                <p style="margin-top: clamp(30px, 5vh, 55px); text-align: center; font-size: clamp(1.2rem, 1.8vw, 1.7rem); color: #ffa500; font-weight: 700;">
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide-number">
+        <span id="current-slide">1</span> / 8
+    </div>
+
+    <div class="controls">
+        <button class="btn" onclick="previousSlide()">← Назад</button>
+        <button class="btn" onclick="nextSlide()">Вперёд →</button>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const slideNumber = document.getElementById('current-slide');
+        const progressBar = document.getElementById('progressBar');
+        let chart = null;
+
+        function updateProgress() {
+            const progress = ((currentSlide + 1) / slides.length) * 100;
+            progressBar.style.width = progress + '%';
+        }
+
+        function showSlide(n) {
+            const oldSlide = slides[currentSlide];
+            oldSlide.classList.add('fade-out');
+            
+            setTimeout(() => {
+                oldSlide.classList.remove('active', 'fade-out');
+                currentSlide = (n + slides.length) % slides.length;
+                const newSlide = slides[currentSlide];
+                newSlide.classList.add('active');
+                slideNumber.textContent = currentSlide + 1;
+                updateProgress();
+                
+                // Initialize chart when reaching slide 3
+                if (currentSlide === 2 && !chart) {
+                    setTimeout(initChart, 200);
+                }
+            }, 300);
+        }
+
+        function nextSlide() {
+            if (currentSlide < slides.length - 1) {
+                showSlide(currentSlide + 1);
+            }
+        }
+
+        function previousSlide() {
+            if (currentSlide > 0) {
+                showSlide(currentSlide - 1);
+            }
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('evolutionChart');
+            if (!ctx) return;
+            
+            ctx.getContext('2d');
+            
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['2006', '2008', '2010', '2012', '2014', '2015', '2018', '2020', '2023', '2025'],
+                    datasets: [{
+                        label: 'Точность прогноза (%)',
+                        data: [65, 70, 75, 80, 82, 87, 88, 89, 92, 95],
+                        borderColor: '#ff8c00',
+                        backgroundColor: 'rgba(255, 140, 0, 0.2)',
+                        borderWidth: 4,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 6,
+                        pointBackgroundColor: '#ff6b00',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 9,
+                        pointHoverBackgroundColor: '#ffa500',
+                        pointHoverBorderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 2000,
+                        easing: 'easeInOutQuart'
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: {
+                                color: '#ffa500',
+                                font: {
+                                    size: 15,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(255, 140, 0, 0.95)',
+                            titleColor: '#000',
+                            bodyColor: '#000',
+                            borderColor: '#ff6b00',
+                            borderWidth: 2,
+                            padding: 14,
+                            titleFont: {
+                                size: 15,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 13
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            min: 60,
+                            max: 100,
+                            ticks: {
+                                color: '#ffa500',
+                                font: {
+                                    size: 13,
+                                    weight: 'bold'
+                                },
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(255, 140, 0, 0.12)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: '#ffa500',
+                                font: {
+                                    size: 13,
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(255, 140, 0, 0.12)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault();
+                nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                previousSlide();
+            } else if (e.key === 'Home') {
+                showSlide(0);
+            } else if (e.key === 'End') {
+                showSlide(slides.length - 1);
+            }
+        });
+
+        // Touch support
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        document.addEventListener('touchstart', function(e) {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+
+        document.addEventListener('touchend', function(e) {
+            touchEndX = e.changedTouches[0].screenX;
+            if (touchStartX - touchEndX > 50) {
+                nextSlide();
+            } else if (touchEndX - touchStartX > 50) {
+                previousSlide();
+            }
+        });
+
+        updateProgress();
+    </script>
+</body>
+</html>
